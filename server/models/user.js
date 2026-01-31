@@ -10,7 +10,7 @@ const advocateSchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true,
-      unique: true // Ensures no two advocates have the same number
+      unique: true 
     },
     name: {
       type: String,

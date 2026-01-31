@@ -20,6 +20,45 @@ export const createAdvocate = async (req, res) => {
   }
 };
 
+// export const bulkCreateAdvocates = async (req, res) => {
+//   try {
+//     const advocates = req.body;
+
+//     if (!Array.isArray(advocates) || advocates.length === 0) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Request body must be a non-empty array"
+//       });
+//     }
+
+//     const BATCH_SIZE = 1000;
+//     let insertedCount = 0;
+
+//     for (let i = 0; i < advocates.length; i += BATCH_SIZE) {
+//       const batch = advocates.slice(i, i + BATCH_SIZE);
+
+//       await Advocate.insertMany(batch, {
+//         ordered: false // allows duplicates & continues
+//       });
+
+//       insertedCount += batch.length;
+//       console.log(`Inserted ${insertedCount}/${advocates.length}`);
+//     }
+
+//     res.status(201).json({
+//       success: true,
+//       message: "Bulk insert completed successfully",
+//       totalInserted: insertedCount
+//     });
+//   } catch (error) {
+//     res.status(500).json({
+//       success: false,
+//       message: "Bulk insert failed",
+//       error: error.message
+//     });
+//   }
+// };
+
 export const bulkCreateAdvocates = async (req, res) => {
   try {
     const advocates = req.body;
@@ -27,33 +66,61 @@ export const bulkCreateAdvocates = async (req, res) => {
     if (!Array.isArray(advocates) || advocates.length === 0) {
       return res.status(400).json({
         success: false,
-        message: "Request body must be a non-empty array"
+        message: "Data array required"
       });
     }
 
     const BATCH_SIZE = 1000;
-    let insertedCount = 0;
+    let totalInserted = 0;
+    let totalDuplicates = 0;
+    let totalValidationErrors = 0;
 
     for (let i = 0; i < advocates.length; i += BATCH_SIZE) {
-      const batch = advocates.slice(i, i + BATCH_SIZE);
+      const rawBatch = advocates.slice(i, i + BATCH_SIZE);
 
-      await Advocate.insertMany(batch, {
-        ordered: false // allows duplicates & continues
-      });
+      // ✅ gender fix
+      const batch = rawBatch.map(doc => ({
+        ...doc,
+        gender: doc.gender
+          ? doc.gender.charAt(0).toUpperCase() +
+            doc.gender.slice(1).toLowerCase()
+          : doc.gender
+      }));
 
-      insertedCount += batch.length;
-      console.log(`Inserted ${insertedCount}/${advocates.length}`);
+      const operations = batch.map(doc => ({
+        insertOne: { document: doc }
+      }));
+
+      try {
+        const result = await Advocate.bulkWrite(operations, {
+          ordered: false
+        });
+
+        const inserted = result.result.nInserted || 0;
+        totalInserted += inserted;
+
+        console.log(`Batch ${i / BATCH_SIZE + 1}: Inserted ${inserted}`);
+      } catch (err) {
+        if (err.writeErrors) {
+          err.writeErrors.forEach(e => {
+            if (e.code === 11000) totalDuplicates++;
+            else totalValidationErrors++;
+          });
+        }
+      }
     }
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
-      message: "Bulk insert completed successfully",
-      totalInserted: insertedCount
+      totalReceived: advocates.length,
+      totalInserted,
+      totalDuplicates,
+      totalValidationErrors
     });
+
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
-      message: "Bulk insert failed",
       error: error.message
     });
   }
