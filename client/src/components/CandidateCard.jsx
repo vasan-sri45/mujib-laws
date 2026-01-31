@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
-import mujibImg from "../assets/mujib.jpeg";
+import mujibImg from "../assets/mujib1.jpeg";
 import { Search } from "lucide-react";
 
 /* ================= MAIN COMPONENT ================= */
