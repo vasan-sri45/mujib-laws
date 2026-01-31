@@ -67,7 +67,7 @@ export default function CandidateCard() {
         style={{ backgroundImage: `url(${mujibImg})` }}
       >
         {/* MOBILE CARD */}
-        <div className="lg:hidden w-full px-4">
+        <div className="lg:hidden w-full flex justify-center mt-[185px]">
           <CardContent
             {...{
               searchType,
